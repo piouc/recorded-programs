@@ -1,13 +1,18 @@
 import gulp from 'gulp'
 
+import './gulp/tasks/static'
 import './gulp/tasks/postcss'
 import './gulp/tasks/browserify'
 
-gulp.task('default', gulp.parallel('browserify', 'postcss'))
+gulp.task('default', gulp.parallel('static', 'postcss', 'browserify'))
 
 gulp.task('watch',
 	gulp.series(
-		gulp.parallel('default', 'browserify:watch'),
-		() => gulp.watch('./src/css/**/*', gulp.parallel('postcss'))
+		'default',
+		gulp.parallel(
+			'static:watch',
+			'postcss:watch',
+			'browserify:watch'
+		)
 	)
 )

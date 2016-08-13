@@ -1,5 +1,4 @@
 import gulp from 'gulp'
-import sourcemaps from 'gulp-sourcemaps'
 import postcss from 'gulp-postcss'
 
 import autoprefixer from 'autoprefixer'
@@ -8,8 +7,10 @@ import postcssNested from 'postcss-nested'
 
 gulp.task('postcss', () => {
 	return gulp.src('src/css/index.css')
-		.pipe(sourcemaps.init())
 		.pipe(postcss([autoprefixer, postcssImport, postcssNested]))
-		.pipe(sourcemaps.write('.'))
 		.pipe(gulp.dest('dist/'))
+})
+
+gulp.task('postcss:watch', () => {
+	return gulp.watch('./src/css/**/*', gulp.parallel('postcss'))
 })
