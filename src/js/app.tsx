@@ -1,0 +1,263 @@
+import React, {useState, useEffect} from 'react'
+import {render} from 'react-dom'
+import classNames from 'classnames'
+
+document.addEventListener('DOMContentLoaded', () => {
+  render(<App />, document.getElementById('app'))
+})
+
+class Channel {
+  type: string
+  channel: string
+  name: string
+  id: string
+  sid: number
+  nid: number
+  hasLogoData: boolean
+  n: number
+  constructor(channel: any) {
+    this.type = channel.type
+    this.channel = channel.channel
+    this.name = channel.name
+    this.id = channel.id
+    this.sid = channel.sid
+    this.nid = channel.nid
+    this.hasLogoData = channel.hasLogoData
+    this.n = channel.n
+  }
+}
+
+class Tuner {
+  name: string
+  command: string
+  isScrambling: boolean
+  constructor(tuner: any) {
+    this.name = tuner.name
+    this.command = tuner.command
+    this.isScrambling = tuner.isScrambling
+  }
+}
+
+class Program {
+  id: string
+  category: string
+  title: string
+  fullTitle: string
+  detail: string
+  start: Date
+  end: Date
+  seconds: number
+  description: string
+  extra: {
+    [key: string]: string
+  }
+  channel: Channel
+  subTitle: string
+  episode?: number
+  flags: string[]
+  isConflict: boolean
+  recordedFormat: string
+  priority: number
+  tuner: Tuner
+  command: string
+  recorded: string
+  constructor(program: any){
+    this.id = program.id
+    this.category = program.category
+    this.title = program.title
+    this.fullTitle = program.fullTitle
+    this.detail = program.detail
+    this.start = new Date(program.start)
+    this.end = new Date(program.end)
+    this.seconds = program.seconds
+    this.description = program.description
+    this.extra = program.extra
+    this.channel = new Channel(program.channel)
+    this.subTitle = program.subTitle
+    this.episode = program.episode
+    this.flags = program.flags
+    this.isConflict = program.isConflict
+    this.recordedFormat = program.recordedFormat
+    this.priority = program.priority
+    this.tuner = new Tuner(program.tuner)
+    this.command = program.command
+    this.recorded = program.recorded
+  }
+}
+
+function App(){
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [filteredPrograms, setFilteredPrograms] = useState<Program[]>([])
+  const [errors, setErrors] = useState<Error[]>([])
+  const [searchString, setSearchString] = useState('')
+  const [watched, setWatched] = useLocalStorageJSON<Program["id"][]>('watched', [])
+
+  const addError = (error: Error) => {
+    setErrors(errors => [...errors, error])
+  }
+
+  const addWatched = (id: Program["id"]) => {
+    if(watched){
+      setWatched([...watched, id])
+    } else {
+      setWatched([id])
+    }
+  }
+
+  useEffect(() => {(async () => {
+    let res: Response
+    try {
+      res = await fetch('/api/recorded.json')
+      if(!res.ok){
+        throw new Error(`Failed to load recorded program list.`)
+      }
+    } catch(error) {
+      addError(error)
+      return
+    }
+    setPrograms(((await res.json()) as any[]).map(p => new Program(p)).sort((a, b) => b.start.getTime() - a.start.getTime()))
+  })()}, [])
+
+  useEffect(() => {
+    if(searchString.length > 0){
+      setFilteredPrograms(programs.filter(program => searchString.split(/\s/).every(s => toHalfWidth(program.fullTitle).toLowerCase().includes(s.toLowerCase()))))
+    } else {
+      setFilteredPrograms(programs)
+    }
+  }, [programs, searchString])
+
+  if(errors.length > 0){
+    return <>
+      <div className="error-container">
+        {
+          errors.map((error, i) => {
+            return <div className="error" key={i}>
+              <div className="error-message">{error.message}</div>
+            </div>
+          })
+        }
+      </div>
+    </>
+  }
+
+  return <>
+    <div className="search-container">
+      <input className="search-input" type="text" value={searchString} onChange={e => setSearchString(e.target.value)} placeholder="Search" />
+    </div>
+    <div className="program-container">
+      {
+        filteredPrograms.map((program, i) => {
+          return <Row
+            key={program.id}
+            program={program}
+            watched={watched?.includes(program.id) ?? false}
+            onWatch={addWatched}
+          />
+        })
+      }
+    </div>
+  </>
+}
+
+function Row({program, watched, onWatch}: {program: Program, watched: boolean, onWatch: (id: Program['id']) => void}){
+  const [showDetail, setShowDetail] = useState(false)
+  const url = `http://ubuntu.lan/api/recorded/${program.id}/watch.m2ts`
+  return <div className={classNames('program-item', {watched: watched})}>
+    <div className="program-item-title" onClick={e => setShowDetail(!showDetail)}>
+      <span className="title">{toHalfWidth(program.title)}</span>
+      {
+        program.episode &&
+        <span className="episode">#{program.episode}</span>
+      }
+      {
+        program.subTitle &&
+        <span className="subtitle">{toHalfWidth(program.subTitle)}</span>
+      }
+    </div>
+    <div className="program-item-button-container">
+      <a className="program-item-button" href={`vlc://${url}`} onClick={() => onWatch(program.id)}>VLC</a>
+      <button className="program-item-button" onClick={e => {
+        copyToClipboard(url)
+        onWatch(program.id)
+      }}>COPY</button>
+    </div>
+    { showDetail && <>
+        <div className="program-item-detail-container">
+          { program.description.trim().length > 0 &&
+            <div className="program-item-detail">
+              <div className="program-item-detail-value">{toHalfWidth(program.description)}</div>
+            </div>
+          }
+          {
+            Object.entries(program.extra).map(([name, value]) => <div key={name} className="program-item-detail">
+              <div className="program-item-detail-name">{name}</div>
+              <div className="program-item-detail-value"><LinkedText value={toHalfWidth(value)} /></div>
+            </div>)
+          }
+        </div>
+      </>
+    }
+  </div>
+}
+
+function LinkedText({value}: {value: string}){
+  const matches = Array.from(value.matchAll(/https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g))
+  let result = matches.reduceRight(({result, value}, match, i) => {
+    const start = match.index
+    const end = (match.index ?? 0) + match[0].length
+    const url = match[0]
+    return {
+      result: [<a key={i} href={url} target="_blank">{url}</a>, value.slice(end), ...result],
+      value: value.slice(0, start)
+    }
+  }, {result: [] as (string | React.ReactElement)[], value})
+  return <>
+    {[result.value, ...result.result]}
+  </>
+}
+
+function useLocalStorageJSON<T>(name: string, initialValue: T): [T | undefined, (value: T) => void]{
+  const [value, setValue] = useState<T | undefined>(initialValue)
+
+  const get = ():T | undefined => {
+    const value = localStorage.getItem(name)
+    if(value === null){
+      return undefined
+    } else {
+      return JSON.parse(value)
+    }
+  }
+
+  const set = (value: T) => {
+    localStorage.setItem(name, JSON.stringify(value))
+    setValue(get())
+  }
+  
+  useEffect(() => {
+    if(typeof get() === 'undefined'){
+      set(initialValue)
+    }
+    setValue(get())
+
+    const storageEventHandler = (e:StorageEvent) => {
+      if(e.key === name){
+        setValue(get())
+      }
+    }
+
+    window.addEventListener('storage', storageEventHandler)
+    return () => {
+      window.removeEventListener('storage', storageEventHandler)
+    }
+  }, [])
+  return [value, set]
+}
+
+
+async function copyToClipboard(data: string){
+  await navigator.clipboard.writeText(data)
+}
+
+function toHalfWidth(str: string){
+  return str.replace(/[Ａ-Ｚａ-ｚ０-９！？＋：．，]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)).replace(/　/g, ' ')
+}

@@ -1,0 +1,61 @@
+{
+  "ava": {
+    "require": [
+      "esm"
+    ]
+  },
+  "name": "app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node app.ts",
+    "develop": "npm run js -- -d -w & npm run css -- --verbose -w & npm run static -- --verbose -w & ts-node-dev app.ts -w",
+    "build": "rm -rf ./dist/* && npm run static && npm run js -- -p && npm run css -- -u cssnano",
+    "static": "babel --copy-files --out-dir dist/public src/static",
+    "js": "webpack",
+    "css": "postcss --no-map -u postcss-import -u postcss-nested -u postcss-sorting -o dist/index.css src/css/index.css",
+    "test": "ava"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.8.4",
+    "@types/classnames": "^2.2.9",
+    "@types/react": "^16.9.19",
+    "@types/react-dom": "^16.9.5",
+    "autoprefixer": "^9.7.4",
+    "ava": "^3.3.0",
+    "babel-loader": "^8.0.6",
+    "classnames": "^2.2.6",
+    "cssnano": "^4.1.10",
+    "esm": "^3.2.25",
+    "http-server": "^0.12.1",
+    "postcss": "^7.0.26",
+    "postcss-cli": "^7.1.0",
+    "postcss-import": "^12.0.1",
+    "postcss-nested": "^4.2.1",
+    "postcss-sorting": "^5.0.1",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "ts-loader": "^6.2.1",
+    "ts-node-dev": "^1.0.0-pre.44",
+    "webpack": "^4.41.5",
+    "webpack-cli": "^3.3.10"
+  },
+  "dependencies": {
+    "@types/express": "^4.17.2",
+    "@types/http-errors": "^1.6.3",
+    "@types/http-proxy-middleware": "^0.19.3",
+    "@types/morgan": "^1.7.37",
+    "@types/request-promise-native": "^1.0.17",
+    "express": "^4.17.1",
+    "http-errors": "^1.7.3",
+    "http-proxy-middleware": "^0.20.0",
+    "morgan": "^1.9.1",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.7.5"
+  }
+}
