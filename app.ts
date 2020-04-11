@@ -1,5 +1,5 @@
 import express, {Request, Response, NextFunction} from 'express'
-import proxy from 'http-proxy-middleware'
+import { createProxyMiddleware, Options } from 'http-proxy-middleware'
 import createError from 'http-errors'
 import morgan from 'morgan'
 
@@ -7,7 +7,7 @@ const app = express()
 
 app.use(morgan('common'))
 
-app.use('/api/*', proxy({target: process.env.CHINACHU_URL}))
+app.use('/api/*', createProxyMiddleware({target: process.env.CHINACHU_URL}))
 app.use(express.static('dist'))
 
 app.use((req, res, next) => {

@@ -25,6 +25,30 @@ a {
   max-width: 60rem;
 }
 
+.button {
+  --button-text-color: hsl(240, 20%, 50%);
+  --button-color: hsl(240, 20%, 30%);
+  --button-hover-color: hsl(240, 20%, 35%);
+  --button-active-color: hsl(240, 20%, 30%);
+  margin: 0 1rem 0.75rem auto;
+  display: block;
+  box-sizing: border-box;
+  background-color: var(--button-color);
+  color: var(--text-color);
+  border: 0 none;
+  padding: 0.25rem 2rem;
+  font-size: 0.8rem;
+  line-height: 1.25rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  &:hover {
+    background-color: var(--button-hover-color);
+  }
+  &:active {
+    background-color: var(-button-active-color);
+  }
+}
+
 .search-container {
   padding: 0 1rem;
   .search-input {
@@ -46,14 +70,24 @@ a {
   padding: 0 1rem;
   margin-top: 0.5rem;
 }
+
 .program-item {
   --row-padding: 0.5rem;
+  --button-color: hsl(350, 80%, 55%);
+  --button-hover-color: hsl(350, 80%, 60%);
+  --button-active-color: hsl(350, 70%, 50%);
+  --button-text-color: #fff;
+  --title-color: hsl(0, 0%, 88%);
+  --sub-title-color: hsl(240, 10%, 50%);
   padding: 0 var(--row-padding);
   font-size: 0.8rem;
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  &:hover {
+  & + .program-item {
+    border-top: 1px solid var(--border-color);
+  }
+  &:hover:not(.show-detail) {
     background-color: hsl(240, 16%, 25%);
   }
   &.watched {
@@ -70,20 +104,23 @@ a {
     align-items: center;
     flex-wrap: wrap;
     line-height: 1.5;
-    padding: 0.5rem 0;
+    padding: calc(0.5rem + 0.175rem) 0;
     .title {
       color: var(--title-color)
     }
-    .episode, .subtitle {
+    .episode, .subtitle, .episode-count, .time-ago {
       color: var(--sub-title-color)
     }
-    .title, .episode, .subtitle {
+    .title, .episode, .subtitle, .episode-count, .time-ago {
       display: block;
       flex: 0 0 auto;
-      max-width: 100%;
+      max-width: calc(100% - 0.5rem);
       text-overflow: ellipsis;
       overflow: hidden;
       margin-right: 0.5rem;
+    }
+    .time-ago {
+      margin-left: auto;
     }
   }
   .program-item-button-container {
@@ -103,6 +140,10 @@ a {
       background-color: var(--button-color);
       color: var(--button-text-color);
       cursor: pointer;
+      @media(max-width: 30rem){
+        padding: 0.25rem 0.5rem;
+        font-size: 0.7rem;
+      }
       &:hover {
         background-color: var(--button-hover-color);
       }
@@ -130,9 +171,16 @@ a {
           text-decoration: underline;
         }
       }
+      .program-item-detail-series-container {
+        border: 1px solid var(--border-color);
+        background-color: hsl(240, 14%, 21%);
+        border-radius: 0.25rem;
+        margin: 0 -0.5rem 0.175rem;
+        .program-item {
+          padding-left: calc(var(--row-padding) - 1px);
+          padding-right: calc(var(--row-padding) - 1px);
+        }
+      }
     }
   }
-}
-.program-item + .program-item {
-  border-top: 1px solid var(--border-color);
 }

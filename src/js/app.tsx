@@ -1,10 +1,10 @@
-import React, {useState, useEffect} from 'react'
-import {render} from 'react-dom'
+import React, {useState, useEffect, createContext, useContext} from 'react'
 import classNames from 'classnames'
+import TimeAgo from 'javascript-time-ago'
+import en from 'javascript-time-ago/locale/en'
 
-document.addEventListener('DOMContentLoaded', () => {
-  render(<App />, document.getElementById('app'))
-})
+TimeAgo.addLocale(en)
+const timeAgo = new TimeAgo()
 
 class Channel {
   type: string
@@ -85,18 +85,26 @@ class Program {
   }
 }
 
-function App(){
+enum Mode {
+  Single,
+  Series
+}
+
+const WatchedCotext = createContext<{watched: Program['id'][] | undefined, add?: ((id: Program['id']) => void)}>({watched: []})
+
+export function App(){
   const [programs, setPrograms] = useState<Program[]>([])
   const [filteredPrograms, setFilteredPrograms] = useState<Program[]>([])
   const [errors, setErrors] = useState<Error[]>([])
   const [searchString, setSearchString] = useState('')
-  const [watched, setWatched] = useLocalStorageJSON<Program["id"][]>('watched', [])
+  const [watched, setWatched] = useLocalStorageJSON<Program['id'][]>('watched', [])
+  const [mode, setMode] = useLocalStorageJSON<Mode>('listMode', Mode.Single)
 
   const addError = (error: Error) => {
     setErrors(errors => [...errors, error])
   }
 
-  const addWatched = (id: Program["id"]) => {
+  const addWatched = (id: Program['id']) => {
     if(watched){
       setWatched([...watched, id])
     } else {
@@ -120,7 +128,8 @@ function App(){
 
   useEffect(() => {
     if(searchString.length > 0){
-      setFilteredPrograms(programs.filter(program => searchString.split(/\s/).every(s => toHalfWidth(program.fullTitle).toLowerCase().includes(s.toLowerCase()))))
+      setFilteredPrograms(
+        programs.filter(program => searchString.split(/\s/).every(s => toHalfWidth(program.fullTitle).toLowerCase().includes(s.toLowerCase()))))
     } else {
       setFilteredPrograms(programs)
     }
@@ -141,28 +150,66 @@ function App(){
   }
 
   return <>
-    <div className="search-container">
-      <input className="search-input" type="text" value={searchString} onChange={e => setSearchString(e.target.value)} placeholder="Search" />
-    </div>
-    <div className="program-container">
-      {
-        filteredPrograms.map((program, i) => {
-          return <Row
-            key={program.id}
-            program={program}
-            watched={watched?.includes(program.id) ?? false}
-            onWatch={addWatched}
-          />
-        })
-      }
-    </div>
+    <WatchedCotext.Provider value={{watched, add: addWatched}}>
+      <button className="button" onClick={() => setMode(mode === Mode.Single ? Mode.Series : Mode.Single)}>{mode === Mode.Single ? 'Switch to series view' : 'Switch to single view'}</button>
+      <div className="search-container">
+        <input className="search-input" type="text" value={searchString} onChange={e => setSearchString(e.target.value)} placeholder="Search" />
+      </div>
+      <div className="program-container">
+        { mode === Mode.Single &&
+          filteredPrograms.map((program, i) => {
+            return <SingleRow
+              key={program.id}
+              program={program}
+              series={programs.filter(p => p.title === program.title)}
+            />
+          })
+        }
+        {
+          mode === Mode.Series &&
+          Object.entries(filteredPrograms.reduce((group, program) => {
+            return {
+              ...group,
+              [program.title]: group[program.title] ? [...group[program.title], program] : [program]
+            }
+          }, {} as {[x: string]: Program[]})).map(([title, programs]) => {
+            return <SeriesRow
+              key={title}
+              title={title}
+              programs={programs}
+            />
+          })
+        }
+      </div>
+    </WatchedCotext.Provider>
   </>
 }
-
-function Row({program, watched, onWatch}: {program: Program, watched: boolean, onWatch: (id: Program['id']) => void}){
+function SeriesRow({title, programs}: {title: string, programs: Program[]}){
   const [showDetail, setShowDetail] = useState(false)
+  return <div className={classNames('program-item', {'show-detail': showDetail})}>
+    <div className="program-item-title" onClick={e => setShowDetail(!showDetail)}>
+      <span className="title">{toHalfWidth(title)}</span>
+      <span className="episode-count">{programs.length > 1 ? `${programs.length} episodes` : `${programs.length} episode`}</span>
+      <span className="time-ago">{timeAgo.format(programs[0].start)}</span>
+    </div>
+    { showDetail &&
+      <div className="program-item-detail-container">
+        <div className="program-item-detail">
+          <div className="program-item-detail-series-container">
+            {programs.map(program => <SingleRow key={program.id} program={program} series={[]} />)}
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+function SingleRow({program, series}: {program: Program, series: Program[]}){
+  const [showDetail, setShowDetail] = useState(false)
+  const {watched, add} = useContext(WatchedCotext)
   const url = `http://ubuntu.lan/api/recorded/${program.id}/watch.m2ts`
-  return <div className={classNames('program-item', {watched: watched})}>
+  
+  return <div className={classNames('program-item', {watched: watched?.includes(program.id), 'show-detail': showDetail})}>
     <div className="program-item-title" onClick={e => setShowDetail(!showDetail)}>
       <span className="title">{toHalfWidth(program.title)}</span>
       {
@@ -173,12 +220,13 @@ function Row({program, watched, onWatch}: {program: Program, watched: boolean, o
         program.subTitle &&
         <span className="subtitle">{toHalfWidth(program.subTitle)}</span>
       }
+      <span className="time-ago">{timeAgo.format(program.start)}</span>
     </div>
     <div className="program-item-button-container">
-      <a className="program-item-button" href={`vlc://${url}`} onClick={() => onWatch(program.id)}>VLC</a>
+      <a className="program-item-button" href={`vlc://${url}`} onClick={() => add?.(program.id)}>VLC</a>
       <button className="program-item-button" onClick={e => {
         copyToClipboard(url)
-        onWatch(program.id)
+        add?.(program.id)
       }}>COPY</button>
     </div>
     { showDetail && <>
@@ -193,6 +241,14 @@ function Row({program, watched, onWatch}: {program: Program, watched: boolean, o
               <div className="program-item-detail-name">{name}</div>
               <div className="program-item-detail-value"><LinkedText value={toHalfWidth(value)} /></div>
             </div>)
+          }
+          { series.length > 1 &&
+            <div className="program-item-detail">
+            <div className="program-item-detail-name">シリーズ</div>
+              <div className="program-item-detail-series-container">
+                {series.map(program => <SingleRow key={program.id} program={program} series={[]} />)}
+              </div>
+            </div>
           }
         </div>
       </>
